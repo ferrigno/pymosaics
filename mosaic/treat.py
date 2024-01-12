@@ -8,10 +8,17 @@ import pandas as pd
 import subprocess
 import os, re
 
+import logging
+
+logging.basicConfig()
+
+logger = logging.getLogger()
+
 from astropy import wcs
 from scipy.optimize import curve_fit
 
 import matplotlib.pylab as plt
+from scipy import optimize
 
 # Our goal in this image analysis is to estimate sensitivity in the whole mosaic 
 # We also find sources and estimate background component
@@ -22,21 +29,15 @@ sextractor_share = "/usr/local/share/sextractor"
 
 def render(*args):
     print(*args)
+    return
 
 ## 2d gaussian
-
-# todo not
-from numpy import *
-from scipy import optimize
-
-# import crab
-
 
 def gaussian(height, center_x, center_y, width_x, width_y):
     """Returns a gaussian function with the given parameters"""
     width_x = float(width_x)
     width_y = float(width_y)
-    return lambda x, y: height * exp(
+    return lambda x, y: height * np.exp(
         -(((center_x - x) / width_x) ** 2 + ((center_y - y) / width_y) ** 2) / 2
     )
 
@@ -46,13 +47,14 @@ def moments(data):
     the gaussian parameters of a 2D distribution by calculating its
     moments"""
     total = data.sum()
-    X, Y = indices(data.shape)
+    X, Y = np.indices(data.shape)
     x = (X * data).sum() / total
     y = (Y * data).sum() / total
     col = data[:, max(0, min(int(y), data.shape[1]-1))]
-    width_x = sqrt(abs((arange(col.size) - y) ** 2 * col).sum() / col.sum())
+    col[~np.isfinite(col)] = 0
+    width_x = np.sqrt(abs((np.arange(col.size) - y) ** 2 * col).sum() / col.sum())
     row = data[max(0, min(int(x), data.shape[0]-1)), :]
-    width_y = sqrt(abs((arange(row.size) - x) ** 2 * row).sum() / row.sum())
+    width_y = np.sqrt(abs((np.arange(row.size) - x) ** 2 * row).sum() / row.sum())
     height = data.max()
     return height, x, y, width_x, width_y
 
@@ -62,13 +64,13 @@ def fitgaussian(data):
     the gaussian parameters of a 2D distribution found by a fit"""
     params = moments(data)
 
-    print("moments:", params)
+    logger.info("moments: %s",  list(params))
 
-    errorfunction = lambda p: ravel(gaussian(*p)(*indices(data.shape)) - data)
+    errorfunction = lambda p: np.ravel(gaussian(*p)(*np.indices(data.shape)) - data)
     # errorfunction = lambda p: ravel(gaussian(*p)(*indices(data.shape)) -
     # data)
     p, success = optimize.leastsq(errorfunction, params)
-    print("optimized", p, success)
+    logger.info("optimized %s %s", p, success)
     return p
 
 
@@ -163,9 +165,9 @@ class DistributionAnalysis:
 
     def show_all(self):
         pixels = self.pixels
-        h = plot.p.hist(
-            pixels[~isnan(pixels)].flatten(),
-            linspace(-6, 20, 1000),
+        h = np.plot.p.hist(
+            pixels[~np.isnan(pixels)].flatten(),
+            np.linspace(-6, 20, 1000),
             lw=0,
             alpha=0.5,
             log=True,
@@ -176,17 +178,17 @@ class DistributionAnalysis:
 
         bin_centres, hist_fit = self.core_fit
 
-        plot.p.plot(bin_centres, hist_fit)
+        np.plot.p.plot(bin_centres, hist_fit)
 
-        plot.p.xlim([-10, 10])
-        plot.p.ylim([1e-5, 1])
-        plot.p.grid()
-        plot.plot("sig_histogram.png")
+        np.plot.p.xlim([-10, 10])
+        np.plot.p.ylim([1e-5, 1])
+        np.plot.p.grid()
+        np.plot.plot("sig_histogram.png")
 
     def calibrate(self):
         pixels = self.pixels
-        h = plot.p.hist(
-            pixels[~isnan(pixels)].flatten(), linspace(-10, 10, 30), lw=0, alpha=0.5
+        h = np.plot.p.hist(
+            pixels[~np.isnan(pixels)].flatten(), np.linspace(-10, 10, 30), lw=0, alpha=0.5
         )
         hist, bin_edges = h[0:2]
         bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
@@ -199,18 +201,18 @@ class DistributionAnalysis:
         symneg = symneg + symneg[::-1]
         symneg[symneg.shape[0] / 2] /= 2
 
-        plot.p.plot(bin_centres, hist)
-        plot.p.plot(bin_centres, symneg)
-        plot.p.errorbar(bin_centres, hist - symneg, sqrt(symneg))
+        np.plot.p.plot(bin_centres, hist)
+        np.plot.p.plot(bin_centres, symneg)
+        np.plot.p.errorbar(bin_centres, hist - symneg, np.sqrt(symneg))
 
         rec_thresh = -(bin_centres[symneg > 0].min())
 
         print("recommended threshold for 1 noise source", rec_thresh)
 
-        plot.p.semilogy()
+        np.plot.p.semilogy()
 
-        plot.p.grid()
-        plot.plot("sig_histogram.png")
+        np.plot.p.grid()
+        np.plot.plot("sig_histogram.png")
 
         self.calibration = None
 
@@ -220,9 +222,9 @@ class DistributionAnalysis:
 
     def fit_core(self):
         pixels = self.pixels
-        h = plot.p.hist(
-            pixels[~isnan(pixels)].flatten(),
-            linspace(-6, 6, 1000),
+        h = np.plot.p.hist(
+            pixels[~np.isnan(pixels)].flatten(),
+            np.linspace(-6, 6, 1000),
             lw=0,
             alpha=0.5,
             log=True,
@@ -233,7 +235,7 @@ class DistributionAnalysis:
 
         def gauss(x, *p):
             A, mu, sigma = p
-            return A * exp(-((x - mu) ** 2) / (2.0 * sigma ** 2)) / sqrt(2 * pi * sigma)
+            return A * np.exp(-((x - mu) ** 2) / (2.0 * sigma ** 2)) / np.sqrt(2 * np.pi * sigma)
 
         def lorentz(x, *p):
             A, mu, gamma = p
@@ -252,12 +254,12 @@ class DistributionAnalysis:
 
         print("fit result", coeff)
 
-        plot.p.plot(bin_centres, hist_fit)
+        np.plot.p.plot(bin_centres, hist_fit)
 
-        plot.p.xlim([-10, 10])
-        plot.p.ylim([1e-5, 1])
-        plot.p.grid()
-        plot.plot("sig_histogram_core.png")
+        np.plot.p.xlim([-10, 10])
+        np.plot.p.ylim([1e-5, 1])
+        np.plot.p.grid()
+        np.plot.plot("sig_histogram_core.png")
 
 
 class ImageAnalysis:
@@ -452,7 +454,7 @@ class ImageAnalysis:
         print(rms)
 
         def avg_nonan(a):
-            return average(a[where(~isnan(a))])
+            return np.average(a[np.where(~np.isnan(a))])
 
         # sensi=rms/0.015*1e-11
 
@@ -493,9 +495,9 @@ class ImageAnalysis:
 
         print(
             render("{RED}exposure-corrected avg_nonan{/}          "),
-            avg_nonan(sensi * sqrt(exposure / 1e6)),
+            avg_nonan(sensi * np.sqrt(exposure / 1e6)),
             render("{YEL}mcrab-Ms{/}"),
-            mcrab2ecs(avg_nonan(sensi * sqrt(exposure / 1e6))),
+            mcrab2ecs(avg_nonan(sensi * np.sqrt(exposure / 1e6))),
             "ecs",
             avg_nonan(exposure) / 1e6,
             "Ms",
@@ -503,10 +505,10 @@ class ImageAnalysis:
 
         print(
             render("{RED}exposure-corrected minimal sensitivity{/}"),
-            sensi.min() * 1e-3 * sqrt(exposure.flatten()[sensi.flatten().argmin()]),
+            sensi.min() * 1e-3 * np.sqrt(exposure.flatten()[sensi.flatten().argmin()]),
             render("{YEL}mcrab-Ms{/}"),
             mcrab2ecs(
-                sensi.min() * 1e-3 * sqrt(exposure.flatten()[sensi.flatten().argmin()])
+                sensi.min() * 1e-3 * np.sqrt(exposure.flatten()[sensi.flatten().argmin()])
             ),
             "ecs",
             exposure.flatten()[sensi.flatten().argmin()] / 1e6,
@@ -532,10 +534,10 @@ class ImageAnalysis:
             exposure_at_sensi_min=exposure.flatten()[rms.flatten().argmin()],
             exposure_avg_nonan=avg_nonan(exposure),
             sensi_min_exposure_corrected_Ms=sensi.min()
-            * sqrt(exposure.flatten()[sensi.flatten().argmin()])
+            * np.sqrt(exposure.flatten()[sensi.flatten().argmin()])
             * 1e-3,
             sensi_avg_nonan_exposure_corrected_Ms=avg_nonan(
-                sensi * sqrt(exposure / 1e6)
+                sensi * np.sqrt(exposure / 1e6)
             ),
             exposyre_max=exposure.max(),
             smooth_b_min=cts2mcrab(bmin),
@@ -555,17 +557,17 @@ class ImageAnalysis:
 
         self.save_as_fits(sensi, "sensitivity%s.fits" % self.tag)
         self.save_as_fits(
-            sensi * sqrt(exposure) * 1e-3, "relative_sensitivity%s.fits" % self.tag
+            sensi * np.sqrt(exposure) * 1e-3, "relative_sensitivity%s.fits" % self.tag
         )
         self.save_as_fits(rms ** 2 / variance, "excess_rms%s.fits" % self.tag)
 
         rms = self.sextractor2.background_rms_ext().data
         significance = self.sextractor2.filtered_ext().data / rms
-        significance[significance < -1e10] = NaN
+        significance[significance < -1e10] = np.NaN
         self.save_as_fits(significance, "significance%s.fits" % self.tag)
 
         significance = self.sextractor2.noobjects_ext().data / rms
-        significance[significance < -1e10] = NaN
+        significance[significance < -1e10] = np.NaN
         self.save_as_fits(significance, "significance_noobjects%s.fits" % self.tag)
 
     def save_statistics(self, statdict):
@@ -608,7 +610,7 @@ class ImageAnalysis:
 
         rms = self.sextractor.background_rms_ext().data
         significance = self.sextractor.filtered_ext().data / rms
-        significance[significance < -1e10] = NaN
+        significance[significance < -1e10] = np.NaN
         self.save_as_fits(significance, "significance_first_pass.fits")
 
         self.sextractor2 = SExtractor(self.hostdir + "/sextractor2")
@@ -623,18 +625,18 @@ class ImageAnalysis:
         #print(ra, dec)
         x, y = self.raw_wcs().world_to_pixel_values(ra, dec)
         #print(x, y)
-        cc = zeros_like(self.sources, shape=(len(x),))
+        cc = np.zeros_like(self.sources, shape=(len(x),))
         cc['X_IMAGE'] = x
         cc['Y_IMAGE'] = y
         cc['ALPHA_SKY'] = ra
         cc['DELTA_SKY'] = dec
-        cc['FLUX_ISO'] = ones(len(x))
+        cc['FLUX_ISO'] = np.ones(len(x))
         # for a, b in zip(x, y):
         #     cc = array(dtype=self.sources.dtype)
         #     cc[''] = a
         #     cc[1] = b
         #     # print(array([[a], [b], [0], [0], [0]], dtype=self.sources.dtype))
-        self.sources = append(self.sources, cc)
+        self.sources = np.append(self.sources, cc)
         #print(self.sources)
 
     @staticmethod
@@ -666,7 +668,7 @@ class ImageAnalysis:
             print("problem with keys: ", e)
 
         # print("Reading " + self.sextractor2.hostdir + "/test.cat")
-        sources = genfromtxt(self.sextractor2.hostdir + "/test.cat", names=keys)
+        sources = np.genfromtxt(self.sextractor2.hostdir + "/test.cat", names=keys)
         # print(keys)
         # print(sources)
         self.sources = sources
@@ -683,14 +685,14 @@ class ImageAnalysis:
         rmsimage = self.sextractor.background_rms_ext().data
         sigimage = self.sextractor2.filtered_ext().data
         exposure = self.raw_exposure_ext().data
-        ix, iy = meshgrid(arange(image.shape[1]), arange(image.shape[0]))
+        ix, iy = np.meshgrid(np.arange(image.shape[1]), np.arange(image.shape[0]))
 
-        print(ix.shape, iy.shape, image.shape)
+        logger.debug('%s %s %s', ix.shape, iy.shape, image.shape)
 
         results = []
         results_extra = []
 
-        image[image < -1e29] = NaN
+        image[image < -1e29] = np.NaN
 
         fns = ""
 
@@ -700,10 +702,10 @@ class ImageAnalysis:
 
         try:
             if len(sources) == 0:
-                print("no sources!")
+                logger.info("no sources!")
                 return
         except Exception as e:
-            print("problem with sources ", e)
+            logger.warning("problem with sources %s", e)
             return
 
         for i, (x, y, ra, dec) in enumerate(
@@ -716,35 +718,35 @@ class ImageAnalysis:
         ):
             r = (ix - x) ** 2 + (iy - y) ** 2
             source = r < self.source_radius ** 2
-            ring = logical_and(r < self.annulus_radius ** 2, r > self.source_radius ** 2)
+            ring = np.logical_and(r < self.annulus_radius ** 2, r > self.source_radius ** 2)
 
-            print(ring.shape, source.shape, r.shape)
+            logger.debug('%s %s %s', ring.shape, source.shape, r.shape)
 
-            print(
-                "source", where(source)[0].shape, self.sources["FLUX_ISO"][i], x, y, ra, dec
+            logger.debug(
+                "source %s %e %e %e %e %e", np.where(source)[0].shape, self.sources["FLUX_ISO"][i], x, y, ra, dec
             )
-            print("ring", where(ring)[0].shape)
-
-            if any(isnan(image[logical_or(source, ring)])):
-                print("there is nan in the source region! skipping")
+            logger.debug("ring %s", np.where(ring)[0].shape)
+            logger.debug('%s', image[np.logical_or(source, ring)])
+            if any(np.isnan(image[np.logical_or(source, ring)])):
+                logger.info("treat image: there is nan in the source region! skipping")
                 flag[i] = 1
                 continue
 
-            expo = average(exposure[source])
+            expo = np.average(exposure[source])
 
             good = image > 1e-20
-            source = logical_and(source, good)
-            ring = logical_and(ring, good)
+            source = np.logical_and(source, good)
+            ring = np.logical_and(ring, good)
 
             if image[source].flatten().shape[0] == 0:
-                print("empty image for this one!")
+                logger.warning("empty image for this one!")
                 continue
 
             peakcounts = image[source].max()
             peaksig = sigimage[source].max()
-            sumcounts = image[source].sum() - average(image[ring]) * source.sum()
+            sumcounts = image[source].sum() - np.average(image[ring]) * source.sum()
 
-            rms = average(rmsimage[source])
+            rms = np.average(rmsimage[source])
 
             # print
             # print "position:",x,y,ra,dec
@@ -861,8 +863,8 @@ image
         self.source_results.to_csv(self.hostdir+self.out_prefix+'source_results.csv')
         self.source_results_extra.to_csv(self.hostdir+self.out_prefix+'source_results_extra.csv')
 
-        savetxt(self.hostdir+self.out_prefix+"source_results.txt", array(results))
-        savetxt(self.hostdir+self.out_prefix+"source_results_extra.txt", array(results_extra))
+        np.savetxt(self.hostdir+self.out_prefix+"source_results.txt", np.array(results))
+        np.savetxt(self.hostdir+self.out_prefix+"source_results_extra.txt", np.array(results_extra))
         if self.save_plots:
             os.system("montage -geometry 300x300 " + fns + " sources.png")
 
@@ -876,10 +878,10 @@ image
 
         exposure = self.raw_exposure_ext().data
 
-        good_exposure = exposure[~isnan(exposure) & ~isinf(exposure) & (exposure != 0)]
+        good_exposure = exposure[~np.isnan(exposure) & ~np.isinf(exposure) & (exposure != 0)]
 
         print("maximum exposure", good_exposure.max())
-        print("average exposure", average(good_exposure))
+        print("average exposure", np.average(good_exposure))
 
         cut = exposure < good_exposure.max() / self.exposure_fraction_cut
 
@@ -893,9 +895,9 @@ image
         flux_image = self.raw_intensity_ext().data
         var_image = self.raw_variance_ext().data
 
-        sig_image[cut] = NaN
-        flux_image[cut] = NaN
-        var_image[cut] = NaN
+        sig_image[cut] = np.NaN
+        flux_image[cut] = np.NaN
+        var_image[cut] = np.NaN
 
         print("band", self.i_band)
 
@@ -1020,10 +1022,10 @@ class SimpleImageAnalysis:
 
         fits.PrimaryHDU(rms).writeto(self.hostdir+self.out_prefix+"rms_%i.fits" % self.i_band, overwrite=True)
 
-        total_rms = std(significance[mask])
+        total_rms = np.std(significance[mask])
 
         def avg_nonan(a):
-            return average(a[where(~isnan(a))])
+            return np.average(a[np.where(~np.isnan(a))])
 
         #e1, e2 = self.erange(self.i_band)
 
