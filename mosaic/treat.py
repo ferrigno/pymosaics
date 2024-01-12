@@ -331,28 +331,31 @@ class ImageAnalysis:
         # print("found bands:", (len(gt) - 1) / 4)
         return int((len(gt) - 1) / 4)
 
-    def get_imatype(self, myhead):
-        extname=''
-        imatype=''
-        if 'EXTNAME' in myhead.keys():
-            extname = myhead['EXTNAME']
-        if 'IMATYPE' in myhead.keys():
-            imatype = myhead['IMATYPE']
+    def get_imatype(self, myhead, default=None):
+        imatype = myhead.get('IMATYPE', '')
+        extname = myhead.get('EXTNAME', '')
 
-        # Priority on IMATYPE !
+        # Priority on IMATYPE !        
         if imatype != '':
             return imatype
         elif extname != '':
             return extname
         else:
-            raise KeyError('Both EXTNAME and IMATYPE are empty, impossible to get image type')
+            if default is None:
+                raise KeyError('Both EXTNAME and IMATYPE are empty, impossible to get image type')
+            else:
+                return default
 
-    def get_extension_by_type(self, exttype):
-        ff = fits.open(self.get_mosaic_fn())
-        h_ret = None
-        for hh in ff:
-            if self.get_imatype(hh.header) == exttype:
-                h_ret = hh
+    def get_extension_by_type(self, exttype: str):
+        with fits.open(self.get_mosaic_fn()) as ff:
+            h_ret = None
+            for hh in ff:
+                if self.get_imatype(hh.header, '') == exttype:
+                    if h_ret is not None:
+                        raise NotImplementedError(f"found two extensions for requested type {exttype}")
+
+                    h_ret = hh.copy()
+
         # Cannot close for way of dealing with input of this class
         #ff.close()
         if h_ret is not None:

@@ -32,6 +32,15 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install .[tests]
 
+    - name: Install sextractor
+      run: |
+        sudo apt-get install -y fftw3 fftw3-dev pkg-config libblas-dev liblapack-dev libatlas-cpp-0.6-dev g++ make automake autoconf libtool libatlas-base-dev
+        curl -L https://github.com/astromatic/sextractor/archive/refs/tags/2.25.0.tar.gz | tar xzf - 
+        cd sextractor-2.25.0
+        bash autogen.sh
+        ./configure
+        sudo make install
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
