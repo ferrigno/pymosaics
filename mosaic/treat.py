@@ -29,7 +29,10 @@ sextractor_share = "/usr/local/share/sextractor"
 if not os.path.isdir(sextractor_share):
     sextractor_share = "/opt/conda/share/sextractor/"
     if not os.path.isdir(sextractor_share):
-        raise Exception('No sextractor share available')
+        sextractor_share = "/opt/miniconda/share/sextractor/"
+        if not os.path.isdir(sextractor_share):
+            raise Exception('No sextractor share available')
+
 
 def render(*args):
     logger.info('%s', *args)
