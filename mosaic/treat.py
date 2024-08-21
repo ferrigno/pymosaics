@@ -547,11 +547,11 @@ class ImageAnalysis:
 
         rms = self.sextractor2.background_rms_ext().data
         significance = self.sextractor2.filtered_ext().data / rms
-        significance[significance < -1e10] = np.NaN
+        significance[significance < -1e10] = np.nan
         self.save_as_fits(significance, "significance%s.fits" % self.tag)
 
         significance = self.sextractor2.noobjects_ext().data / rms
-        significance[significance < -1e10] = np.NaN
+        significance[significance < -1e10] = np.nan
         self.save_as_fits(significance, "significance_noobjects%s.fits" % self.tag)
 
     def save_statistics(self, statdict):
@@ -594,7 +594,7 @@ class ImageAnalysis:
 
         rms = self.sextractor.background_rms_ext().data
         significance = self.sextractor.filtered_ext().data / rms
-        significance[significance < -1e10] = np.NaN
+        significance[significance < -1e10] = np.nan
         self.save_as_fits(significance, "significance_first_pass.fits")
 
         self.sextractor2 = SExtractor(self.hostdir + "/sextractor2")
@@ -676,7 +676,7 @@ class ImageAnalysis:
         results = []
         results_extra = []
 
-        image[image < -1e29] = np.NaN
+        image[image < -1e29] = np.nan
 
         fns = ""
 
@@ -879,9 +879,9 @@ image
         flux_image = self.raw_intensity_ext().data
         var_image = self.raw_variance_ext().data
 
-        sig_image[cut] = np.NaN
-        flux_image[cut] = np.NaN
-        var_image[cut] = np.NaN
+        sig_image[cut] = np.nan
+        flux_image[cut] = np.nan
+        var_image[cut] = np.nan
 
         logger.info("band %s", self.i_band)
 
