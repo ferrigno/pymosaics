@@ -6,39 +6,45 @@ import astropy.io.fits as fits
 import numpy as np
 import pandas as pd
 import subprocess
-import os, re
-
+import os
+import re
 import logging
+from astropy import wcs
+from scipy.optimize import curve_fit
+import matplotlib.pylab as plt
+from scipy import optimize
 
 logging.basicConfig()
 
 logger = logging.getLogger()
-
-from astropy import wcs
-from scipy.optimize import curve_fit
-
-import matplotlib.pylab as plt
-from scipy import optimize
 
 # Our goal in this image analysis is to estimate sensitivity in the whole mosaic 
 # We also find sources and estimate background component
 # see examples on https://apc.u-paris.fr/Downloads/astrog/savchenk/imgb/ISGRI_deep.html
 
 # TODO: find the config
-sextractor_share = "/usr/local/share/sextractor"
-if not os.path.isdir(sextractor_share):
-    sextractor_share = "/opt/conda/share/sextractor/"
-    if not os.path.isdir(sextractor_share):
-        sextractor_share = "/opt/miniconda/share/sextractor/"
-        if not os.path.isdir(sextractor_share):
-            raise Exception('No sextractor share available')
+sextractor_share_locs = ["/usr/local/share/sextractor",
+                         "/opt/conda/share/sextractor/",
+                         "/opt/miniconda/share/sextractor/"]
+
+tmp = os.popen('command -v python').read().replace('bin/python\n', 'share/sextractor')
+sextractor_share_locs.append(tmp)
+notFound = True
+for sextractor_share in sextractor_share_locs:
+    if os.path.isdir(sextractor_share):
+        logger.warning(f'Check {sextractor_share}')
+        notFound = False
+        break
+if notFound: 
+    raise Exception('No sextractor share available')
 
 
 def render(*args):
     logger.info('%s', *args)
     return
 
-## 2d gaussian
+# 2d gaussian
+
 
 def gaussian(height, center_x, center_y, width_x, width_y):
     """Returns a gaussian function with the given parameters"""
@@ -81,9 +87,6 @@ def fitgaussian(data):
     return p
 
 
-##
-
-
 class SExtractor:
     back_size = 4
     threshold = 3
@@ -104,7 +107,6 @@ class SExtractor:
         except:
             os.chdir(cwd)
             raise
-            
 
     def _run(self):
         config = open(sextractor_share + "/default.sex").read()
@@ -123,7 +125,6 @@ class SExtractor:
             "0 1 0\n"
             "0 0 0\n")
         
-
         def set_key(config, key, value):
             return re.sub("(?<=" + key + "[ \t])(.*?)(?=\n)", value + " #", config)
 
@@ -159,8 +160,6 @@ class SExtractor:
 
     def noobjects_ext(self):
         return fits.open(self.hostdir + "/noobjects.fits")[0]
-
-
 
 
 class DistributionAnalysis:
