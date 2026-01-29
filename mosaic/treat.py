@@ -126,7 +126,7 @@ class SExtractor:
             "0 0 0\n")
         
         def set_key(config, key, value):
-            return re.sub("(?<=" + key + "[ \t])(.*?)(?=\n)", value + " #", config)
+            return re.sub(r"(?<=" + key + r"[ \t])(.*?)(?=\n)", value + " #", config)
 
         check_images = [
             ("BACKGROUND_RMS", "background_rms.fits"),
@@ -645,7 +645,7 @@ class ImageAnalysis:
 
         try:
             keys, keypositions = list(
-                zip(*[reversed(re.search(" *(\d+) (.*?) ", c).groups()) for c in cd])
+                zip(*[reversed(re.search(r" *(\d+) (.*?) ", c).groups()) for c in cd])
             )
         except Exception as e:
             logger.warning("problem with keys: %s", e)
