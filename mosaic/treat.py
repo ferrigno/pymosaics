@@ -27,7 +27,7 @@ sextractor_share_locs = ["/usr/local/share/sextractor",
                          "/opt/conda/share/sextractor/",
                          "/opt/miniconda/share/sextractor/"]
 
-tmp = os.popen('command -v python').read().replace('bin/python\n', 'share/sextractor')
+tmp = os.popen('command -v sex').read().replace('bin/sex\n', 'share/sextractor')
 sextractor_share_locs.append(tmp)
 notFound = True
 for sextractor_share in sextractor_share_locs:
